@@ -6,20 +6,8 @@ def get_discounted_returns(rewards, gamma):
     disc_returns[-1] = rewards[-1]
     for i in reversed(range(rewards.size-1)):
         disc_returns[i] = rewards[i] + gamma * disc_returns[i+1]
-
-    # print("Normalized Rewards")
-    # print(rewards)
-    # print("Discounted Normalized Returns")
-    # print(disc_returns)
-
-    # return disc_returns
     
-    if gamma == 1:
-        norm_factor = rewards.size
-    else:
-        norm_factor = (1-gamma**rewards.size)/(1-gamma)
-    
-    return disc_returns / norm_factor
+    return disc_returns
 
 def moving_average(data, window):
     if window == 0 or window >= data.size:
@@ -54,9 +42,6 @@ def standard_dev(data, window):
             stddevs[i] = np.std(data[begin:end+1])
 
     return stddevs
-
-def calc_discounted_return():
-    pass
 
 def concat_episodes(episodes_data):
     num_eps    = episodes_data.num_eps

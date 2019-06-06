@@ -8,13 +8,13 @@ from agents     import init_agent
 from training   import train_agent
 from ep_utils   import store_episodes_data, store_episodes_stats, get_episodes_stats
 
-
 def main():
     # get directory with argv
     exp_dir = sys.argv[1]
 
     # read config file
     config = get_exp_cfg(exp_dir)
+    config['train'] = True
     print('Experiment Configuration:')
     print(config)
 
@@ -47,9 +47,10 @@ def main():
         store_episodes_stats(data_dir, episodes_data, episodes_stats)
         plot_episodes_data(data_dir, episodes_data, episodes_stats, config)
         plot_loss_data(data_dir, loss)
+        
+        agent.save(data_dir)
 
     env.close()
-
 
 if __name__ == '__main__':
     main()

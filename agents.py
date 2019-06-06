@@ -32,29 +32,35 @@ class EpsilonGreedyPolicy(Policy):
         self.epsilon_dec = config['epsilon_dec']
         self.epsilon     = 1.0
 
-        self.Qfunction = QFunction(self.state_dim+self.action_dim, config)
+        #self.Qfunction = QFunction(self.state_dim+self.action_dim, config)
+        self.Qfunction = QFunction(self.state_dim+self.action_dim+1, config)
+        
         self.actions = discretize_actions(self.low, self.high, self.num_actions)
-        self.norm_actions = np.linspace(0, 1, self.num_actions).reshape(self.num_actions, 1)
+        #self.norm_actions = np.linspace(0, 1, self.num_actions).reshape(self.num_actions, 1)
+        self.norm_actions = self.actions/self.high
 
     def __call__(self, norm_state):
         # choose action based on epsilon greedy policy
         if np.random.uniform() > self.epsilon:
             # state is assumed to be normalized already
-            #norm_actions = self.actions/self.high
             Qvalues = self.Qfunction(norm_state, self.norm_actions)
-            return self.actions[np.argmax(Qvalues)], False
+            return self.actions[np.argmax(Qvalues)]
         else:
-            return self.actions[np.random.randint(0, self.actions.size)], True
+            return self.actions[np.random.randint(0, self.actions.size)]
+
+    def get_Qvalue(self, norm_state, norm_action):
+        Qvalues = self.Qfunction(norm_state, norm_action)
+        return Qvalues
 
     def decay_epsilon(self):
         self.epsilon *= self.epsilon_dec
         #print("Epsilon Value: {:g}".format(self.epsilon))
         
     def load(self, name):
-        self.Qfunction.mlp.load_weights(name)
+        self.Qfunction.load(name)
 
     def save(self, name):
-        self.Qfunction.mlp.save_weights(name)
+        self.Qfunction.save(name)
 
 
 class RandomPolicy(Policy):
@@ -65,7 +71,6 @@ class RandomPolicy(Policy):
 
     def __call__(self, state):
         return np.random.uniform(self.low, self.high)
-        #return 2 * np.random.randn(1)
 
 class Agent(ABC):
     def __init__(self, policy, trainer):
@@ -93,6 +98,12 @@ class MCCAgent(Agent):
         self.policy.decay_epsilon()
         loss = self.trainer(episode_list)
         return loss
+        
+    def save(self, name):
+        self.policy.save(name + '/MCCAgent_weights.h5')
+        
+    def load(self, name):
+        self.policy.load(name)
 
 class RandomAgent(Agent):
     def __init__(self, env):

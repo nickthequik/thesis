@@ -9,8 +9,6 @@ from misc_utils import concat_episodes
 def plot_episodes_data(data_dir, episodes_data, episode_stats, config):
     env_name = config['environment']
 
-    if env_name == 'Pendulum-v0':
-        plot_pendulum_data2(data_dir, episodes_data, episode_stats)
     if env_name == 'my_Pendulum-v0':
         plot_pendulum_data(data_dir, episodes_data, episode_stats)
     elif env_name == 'my_Cartpole-v0':
@@ -20,7 +18,7 @@ def plot_episodes_data(data_dir, episodes_data, episode_stats, config):
 
 def make_histogram(data, opt, save_dir):
     plt.figure()
-    plt.hist(data, bins = 100, density=True)
+    plt.hist(data, bins=100, density=True)
     plt.title(opt['title'])
     plt.xlabel(opt['x_label'])
     plt.ylabel(opt['y_label'])
@@ -46,7 +44,7 @@ def make_plot(data, opt, save_dir):
 def plot_loss_data(data_dir, loss):
     loss_opt = {'x_label': 'Episode',
                 'y_label': 'Loss',
-                'y_lims':   [0,0.1],
+                'y_lims':   [0,0.01],
                 'title':   'Training Loss'}
     make_plot(loss, loss_opt, data_dir)
 
@@ -100,38 +98,6 @@ def plot_pendulum_data(data_dir, episodes_data, episode_stats):
 
     plot_reward_stats(data_dir, episodes_data, episode_stats)
 
-def plot_pendulum_data2(data_dir, episodes_data, episode_stats):
-    # stack all states, action, and rewards into long arrays
-    concat_states,concat_actions,concat_rewards = concat_episodes(episodes_data)
-
-    # call histogram function on states, actions, and rewards
-    x1_opt = {'x_label': 'Cos Theta',
-              'y_label': 'Frequency',
-              'title':   'Cos Theta Histogram'}
-    make_histogram(concat_states[0,:], x1_opt, data_dir)
-
-    x2_opt = {'x_label': 'Sin Theta',
-              'y_label': 'Frequency',
-              'title':   'Sin Theta Histogram'}
-    make_histogram(concat_states[1,:], x2_opt, data_dir)
-
-    x3_opt = {'x_label': 'Angular Velocity [rad/s]',
-              'y_label': 'Frequency',
-              'title':   'Angular Velocity Histogram'}
-    make_histogram(concat_states[2,:], x3_opt, data_dir)
-    
-    act_opt = {'x_label': 'Torque [Nm]',
-               'y_label': 'Frequency',
-               'title':   'Action Histogram'}
-    make_histogram(concat_actions[0,:], act_opt, data_dir)
-
-    rew_opt = {'x_label': 'Reward',
-               'y_label': 'Frequency',
-               'title':   'Reward Histogram'}
-    make_histogram(concat_rewards, rew_opt, data_dir)
-
-    plot_reward_stats(data_dir, episodes_data, episode_stats)
-
 def plot_cattpole_data(data_dir, train_data):
     pass
 
@@ -169,3 +135,43 @@ class RewardPlotter:
             
     def close(self):
         plt.close(self.fig)
+
+# keep track of specific states' Q value throughout training to monitor progress
+class TrainingTracker:
+    def __init__(self, config, num_eps):
+        env_name = config['environment']
+        
+        if env_name == 'Pendulum-v0':
+            # normalized states
+            self.states  = np.array([[-1, -1/2, 0, 1/2, 1],
+                                     [ 0,    0, 0,   0, 0],
+                                     [ 0,    0, 0,   0, 0]])
+                                     
+            #self.actions = np.array([-1, 0, 1]).reshape((3,1))
+        
+        self.Qvalues = np.zeros((self.states.shape[1], num_eps))
+        
+    def evaluate(self, iter, agent):
+        for i in range(self.states.shape[1]):
+            self.Qvalues[i,iter] = agent.policy.get_Qvalue(self.states[:,i], np.array([[0]]))
+        
+    def plot(self):
+        plt.figure()
+        
+        for i in range(self.Qvalues.shape[0]):
+            plt.plot(self.Qvalues[i,:], label="State {:d}".format(i))
+            
+        plt.title('Q Values')
+        plt.xlabel('Episode')
+        plt.ylabel('Q Value')
+        plt.xlim(0,self.Qvalues.shape[1])
+        plt.grid(b=True, which='both')
+        plt.legend()
+        plt.show()
+        plt.close()
+        
+        
+        
+        
+        
+        

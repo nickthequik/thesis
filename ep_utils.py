@@ -23,7 +23,7 @@ class EpisodeList:
             begin = max(0, self.num_eps - self.window)
             N = self.num_eps - begin
 
-        returns = [self.episode_list[self.num_eps-i-1].retrn for i in range(N)]
+        returns = [self.episode_list[self.num_eps-i-1].total_reward for i in range(N)]
         return np.mean(returns)
 
 class Episode:
@@ -35,15 +35,14 @@ class Episode:
         # normalized states and action for training neural networks
         self.norm_states  = np.zeros((state_dim, timesteps))
         self.norm_actions = np.zeros((action_dim, timesteps))
-        self.norm_rewards = np.zeros(timesteps)
 
-    def calculate_stats(self, ep_length, gamma):
+    def calculate_returns(self, ep_length, gamma, normalize_returns):
         self.length = ep_length
-        self.retrn = np.sum(self.rewards)
-        #self.disc_retrn = get_discounted_returns(self.rewards, gamma)
-        self.disc_retrn = get_discounted_returns(self.norm_rewards, gamma)
+        self.total_reward = np.sum(self.rewards)
+        self.returns = get_discounted_returns(self.rewards, gamma)
+        self.norm_returns = normalize_returns(self.returns, gamma)
         
-        return self.retrn
+        return self.total_reward
 
 def store_episodes_data(data_dir, train_data, loss=None, all=False):
     num_eps    = train_data.num_eps
@@ -93,7 +92,8 @@ def store_episodes_data(data_dir, train_data, loss=None, all=False):
 def get_episodes_stats(config, episodes_data, elapsed_time):
     window = config['window']
     num_eps = episodes_data.num_eps
-    returns = np.array([episodes_data.episode_list[i].retrn for i in range(num_eps)])
+    episode_list = episodes_data.episode_list
+    returns = np.array([episode_list[i].total_reward for i in range(num_eps)])
 
     returns_MA = moving_average(returns, window)
     returns_SD = standard_dev(returns, window)
@@ -116,8 +116,8 @@ def store_episodes_stats(data_dir, train_data, episode_stats):
         f.write('Final Average Reward = {:g}\n'.format(final_avg_rew))
         f.write('Final SD Reward = {:g}\n'.format(final_sd_rew))
 
-def print_episode_stats(retrn, returns_MA, num_eps, ep_index, print_freq):
+def print_episode_stats(total_reward, returns_MA, num_eps, ep_index, print_freq):
     if (ep_index+1) % print_freq == 0:
         print("\nEPISODE {:d}/{:d}".format(ep_index+1, num_eps))
-        print("\tReturn:  {:g}".format(retrn))
+        print("\tReturn:  {:g}".format(total_reward))
         print("\tAvg Return: {:g}".format(returns_MA))
