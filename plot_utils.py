@@ -6,16 +6,6 @@ import matplotlib.pyplot as plt
 
 from misc_utils import concat_episodes
 
-def plot_episodes_data(data_dir, episodes_data, episode_stats, config):
-    env_name = config['environment']
-
-    if env_name == 'my_Pendulum-v0':
-        plot_pendulum_data(data_dir, episodes_data, episode_stats)
-    elif env_name == 'my_Cartpole-v0':
-        plot_cattpole_data(data_dir, episodes_data)
-    elif env_name == 'my_Acrobot-v0':
-        plot_acrobot_data(data_dir, episodes_data)
-
 def make_histogram(data, opt, save_dir):
     plt.figure()
     plt.hist(data, bins=100, density=True)
@@ -71,6 +61,16 @@ def plot_reward_stats(data_dir, episodes_data, episode_stats):
               'title':   'Reward Standard Deviation'}
     make_plot(returns_SD , sd_opt, data_dir)
 
+def plot_episodes_data(data_dir, episodes_data, episode_stats, config):
+    env_name = config['environment']
+
+    if env_name == 'my_Pendulum-v0':
+        plot_pendulum_data(data_dir, episodes_data, episode_stats)
+    elif env_name == 'my_Cartpole-v0':
+        plot_cattpole_data(data_dir, episodes_data)
+    elif env_name == 'my_Acrobot-v0':
+        plot_acrobot_data(data_dir, episodes_data)
+
 def plot_pendulum_data(data_dir, episodes_data, episode_stats):
     # stack all states, action, and rewards into long arrays
     concat_states,concat_actions,concat_rewards = concat_episodes(episodes_data)
@@ -79,12 +79,17 @@ def plot_pendulum_data(data_dir, episodes_data, episode_stats):
     x1_opt = {'x_label': 'Angle [rad/pi]',
               'y_label': 'Frequency',
               'title':   'Angle Histogram'}
-    make_histogram(concat_states[0,:]/np.pi, x1_opt, data_dir)
+    #concat_states[0,:] = (((concat_states[0,:]+np.pi) % (2*np.pi)) - np.pi)
+    # make_histogram(concat_states[0,:]/np.pi, x1_opt, data_dir)
+
+    thetas = np.arctan2(concat_states[1,:], concat_states[0,:])
+    make_histogram(thetas/np.pi, x1_opt, data_dir)
 
     x2_opt = {'x_label': 'Angular Velocity [rad/s]',
               'y_label': 'Frequency',
               'title':   'Angular Velocity Histogram'}
-    make_histogram(concat_states[1,:], x2_opt, data_dir)
+    # make_histogram(concat_states[1,:], x2_opt, data_dir)
+    make_histogram(concat_states[2,:], x2_opt, data_dir)
 
     act_opt = {'x_label': 'Torque [Nm]',
                'y_label': 'Frequency',
@@ -103,6 +108,60 @@ def plot_cattpole_data(data_dir, train_data):
 
 def plot_acrobot_data(data_dir, train_data):
     pass
+
+def get_episode_plotter(config):
+    env_name = config['environment']
+
+    if env_name == 'my_Pendulum-v0':
+        return plot_pendulum_episode
+    elif env_name == 'my_Cartpole-v0':
+        pass
+    elif env_name == 'my_Acrobot-v0':
+        pass
+
+def plot_pendulum_episode(episode):
+    fig = plt.figure()
+    fig.set_size_inches(10,5)
+    
+    states = episode.states
+    actions = episode.actions
+    rewards = episode.rewards
+    
+    thetas = np.arctan2(states[1,:],states[0,:])
+    
+    # Phase Plane plot
+    ax0 = fig.add_subplot(1,2,1)
+    ax0.set_title("Phase Plane Trajectory")
+    ax0.set_xlabel("Theta [rad/pi]")
+    ax0.set_ylabel("Theta Dot [rad/s]")
+    ax0.grid(b=True, which='both')
+    # trajectory, = ax0.plot(states[0, :]/np.pi, states[1, :])
+    # target,     = ax0.plot(0, 0, marker='x', color='red')
+    # start,      = ax0.plot(states[0, 0]/np.pi, states[1, 0], marker='o', color='red')
+    # end,        = ax0.plot(states[0, -1]/np.pi, states[1, -1], marker='s', color='red')
+    trajectory, = ax0.plot(thetas/np.pi, states[2, :])
+    target,     = ax0.plot(0, 0, marker='x', color='red')
+    start,      = ax0.plot(thetas[0]/np.pi, states[2, 0], marker='o', color='red')
+    end,        = ax0.plot(thetas[-1]/np.pi, states[2, -1], marker='s', color='red')
+
+    # States and actions
+    ax1 = fig.add_subplot(1,2,2)
+    ax1.set_title("Time Domain Plot")
+    ax1.set_xlabel("Time Step")
+    ax1.set_ylabel("Value")
+    ax1.grid(b=True, which='both')
+    # theta,    = ax1.plot(states[0, :]/np.pi, label="Theta [rad/pi]", color='tab:blue')
+    # thetadot, = ax1.plot(states[1, :], label="Theta Dot [rad/s]", color='tab:orange')
+    # action,   = ax1.plot(actions[0, :], label="Torque [Nm]", color='tab:red')
+    theta,    = ax1.plot(thetas/np.pi, label="Theta [rad/pi]", color='tab:blue')
+    thetadot, = ax1.plot(states[2, :], label="Theta Dot [rad/s]", color='tab:orange')
+    action,   = ax1.plot(actions[0, :], label="Torque [Nm]", color='tab:red')
+
+    # Reward
+    ax2 = ax1.twinx()
+    reward, = ax2.plot(rewards, label="Reward", color='tab:green')
+
+    plt.pause(0.01)
 
 class RewardPlotter:
     def __init__(self, num_eps):
@@ -153,7 +212,7 @@ class TrainingTracker:
         
     def evaluate(self, iter, agent):
         for i in range(self.states.shape[1]):
-            self.Qvalues[i,iter] = agent.policy.get_Qvalue(self.states[:,i], np.array([[0]]))
+            self.Qvalues[i,iter] = agent.policy.Qfunction(self.states[:,i], np.array([[0]]))
         
     def plot(self):
         plt.figure()

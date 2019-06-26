@@ -21,8 +21,15 @@ def init_env(config):
 def normalize_pendulum_state(state):
     norm_state = np.zeros(state.size)
     
-    norm_state[0] = -1.0 + (state[0] + np.pi)/np.pi
-    norm_state[1] = -1.0 + (state[1] + 8.0) / 8.0
+    # 2 state - theta, thetadot
+    # wrapped_theta = (((state[0]+np.pi) % (2*np.pi)) - np.pi)
+    # norm_state[0] = -1.0 + (wrapped_theta + np.pi)/np.pi
+    # norm_state[1] = -1.0 + (state[1] + 8.0) / 8.0
+    
+    # 3 state - cos(theta), sin(theta), thetadot
+    norm_state[0] = state[0]
+    norm_state[1] = state[1]
+    norm_state[2] = -1.0 + (state[2] + 8.0) / 8.0
     
     return norm_state
 

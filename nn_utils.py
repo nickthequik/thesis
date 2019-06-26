@@ -44,6 +44,7 @@ class QFunction:
         self.mlp.save_weights(name)
         
     def load(self, name):
+        print('loading weights from {:s}'.format(name))
         self.mlp.load_weights(name)
 
 class QFunctionUpdater:
@@ -77,10 +78,14 @@ class QFunctionUpdater:
             states = episode.norm_states
             actions = episode.norm_actions
             disc_retrn = episode.norm_returns
-        
-            t = np.arange(500).reshape((1,500)) / 499
-        
-            x = np.transpose(np.vstack((states, t, actions)))
+            
+            # time in state
+            # t = np.arange(100).reshape((1,100)) / 99
+            # x = np.transpose(np.vstack((states, t, actions)))
+            
+            # time not in state
+            x = np.transpose(np.vstack((states, actions)))
+            
             #print("Training Input:")
             #print(x)
             # print("Discounted Returns:")

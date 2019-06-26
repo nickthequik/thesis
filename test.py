@@ -8,18 +8,15 @@ if __name__ == '__main__':
     #env = gym.make('my_Cartpole-v0')
     #env = gym.make('my_Acrobot-v0')
 
-    for ep in range(10):
-        state = env.reset_to_state([2,-5])
-        #state = env.reset()
+    x0 = np.array([np.pi/2, 0])
+    states
+    rewards = np.zeros(100)
 
-        for t in range(500):
-            env.render()
-            #action = env.action_space.sample()
-            action = [0]
-            state, reward, _, _ = env.step(action)
-        
-            #print("State: [{:g}, {:g}] \
-            #       Action: {:g} \
-            #       Reward: {:g}".format(state[0], state[1], action[0], reward))
+    state = env.reset(state=x0)
+    for t in range(100):
+        #env.render()
+        states[:,t] = state
+        state, reward, _, _ = env.step1([0])
+        rewards[t] = reward    
 
     env.close()

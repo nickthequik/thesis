@@ -22,7 +22,7 @@ def moving_average(data, window):
         means = np.zeros(data.size)
         for i in range(data.size):
             begin = max(0,i-(window-1)//2)
-            end   = min(data.size, i+(window-1)//2)
+            end   = min(data.size, i+(window-1)//2 + 1)
             means[i] = np.mean(data[begin:end])
 
     return means

@@ -32,7 +32,7 @@ def train_agent(agent, env, config):
             episode.states[:,t] = state
             episode.norm_states[:,t] = norm_state
 
-            norm_state = np.append(norm_state, t/499)
+            # norm_state = np.append(norm_state, t/(timesteps-1))
 
             action = agent.act(norm_state)
             
@@ -54,7 +54,7 @@ def train_agent(agent, env, config):
         returns_MA = episode_list.return_MA()
 
         # print episode stats and update reward plot
-        update_freq = 1000
+        update_freq = 100
         print_episode_stats(total_reward, returns_MA, num_eps, i, update_freq)
         reward_plot.update(i, total_reward, returns_MA, update_freq)
 

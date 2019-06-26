@@ -32,8 +32,11 @@ class EpsilonGreedyPolicy(Policy):
         self.epsilon_dec = config['epsilon_dec']
         self.epsilon     = 1.0
 
-        #self.Qfunction = QFunction(self.state_dim+self.action_dim, config)
-        self.Qfunction = QFunction(self.state_dim+self.action_dim+1, config)
+        # time not in state
+        self.Qfunction = QFunction(self.state_dim+self.action_dim, config)
+        
+        # time in state
+        # self.Qfunction = QFunction(self.state_dim+self.action_dim+1, config) 
         
         self.actions = discretize_actions(self.low, self.high, self.num_actions)
         #self.norm_actions = np.linspace(0, 1, self.num_actions).reshape(self.num_actions, 1)
@@ -48,20 +51,14 @@ class EpsilonGreedyPolicy(Policy):
         else:
             return self.actions[np.random.randint(0, self.actions.size)]
 
-    def get_Qvalue(self, norm_state, norm_action):
-        Qvalues = self.Qfunction(norm_state, norm_action)
-        return Qvalues
+    def greedy_action(self, norm_state):
+        Qvalues = self.Qfunction(norm_state, self.norm_actions)
+        return self.actions[np.argmax(Qvalues)]
 
     def decay_epsilon(self):
+        # if self.epsilon > 0.05:
         self.epsilon *= self.epsilon_dec
         #print("Epsilon Value: {:g}".format(self.epsilon))
-        
-    def load(self, name):
-        self.Qfunction.load(name)
-
-    def save(self, name):
-        self.Qfunction.save(name)
-
 
 class RandomPolicy(Policy):
     def __init__(self, env):
@@ -91,8 +88,11 @@ class MCCAgent(Agent):
         trainer = QFunctionUpdater(policy, config)
         super().__init__(policy, trainer)
 
-    def act(self, state):
-        return self.policy(state)
+    def act(self, state, greedy=False):
+        if not greedy:
+            return self.policy(state)
+        else:
+            return self.policy.greedy_action(state)
 
     def train(self, episode_list):
         self.policy.decay_epsilon()
@@ -100,10 +100,10 @@ class MCCAgent(Agent):
         return loss
         
     def save(self, name):
-        self.policy.save(name + '/MCCAgent_weights.h5')
+        self.policy.Qfunction.save(name + '/MCCAgent_weights.h5')
         
     def load(self, name):
-        self.policy.load(name)
+        self.policy.Qfunction.load(name + '/MCCAgent_weights.h5')
 
 class RandomAgent(Agent):
     def __init__(self, env):
