@@ -41,9 +41,12 @@ def normalize_pendulum_action(action):
 def normalize_pendulum_return(returns, gamma):
     if gamma == 1:
         norm_factor = 16.2736044 * returns.size
+        # norm_factor = 26.8 * returns.size
     else:
         norm_factor = 16.2736044 * (1-gamma**returns.size)/(1-gamma)
-        # norm_factor = (1-gamma**rewards.size)/(1-gamma) # for other reward function
+        # norm_factor = 18.2696044 * (1-gamma**returns.size)/(1-gamma)
+        # norm_factor = (1-gamma**returns.size)/(1-gamma)
+        # norm_factor = 26.8 * (1-gamma**returns.size)/(1-gamma)
         
     return returns / norm_factor
     

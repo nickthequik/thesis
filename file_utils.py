@@ -11,7 +11,7 @@ def interpret_kv_pair(key, value):
         key == 'window'     or key == 'batch_size' or key == 'num_actions' or
         key == 'buff_size'):
        value = int(value)
-    elif (key == 'gamma' or key == 'lr' or key == 'epsilon_dec'):
+    elif (key == 'gamma' or key == 'lr' or key == 'pglr' or key == 'epsilon_dec'):
        value = float(value)
 
     return value

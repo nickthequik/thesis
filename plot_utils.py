@@ -31,15 +31,39 @@ def make_plot(data, opt, save_dir):
     plt.savefig(save_dir + '/' + opt['title'] + '.png')
     plt.close()
 
-def plot_loss_data(data_dir, loss):
+def plot_loss_data(data_dir, loss, config):
+    agent_name = config['agent']
+
+    if agent_name == 'Random':
+        return
+    elif agent_name =='MonteCarloControl' or agent_name =='GPS':
+        plot_mcc_loss(data_dir, loss,)
+    elif agent_name == 'REINFORCE':
+        plot_mcpg_loss(data_dir, loss,)
+    
+def plot_mcc_loss(data_dir, loss,):
+    loss_mean = np.mean(loss[:,0])
     loss_opt = {'x_label': 'Episode',
                 'y_label': 'Loss',
-                'y_lims':   [0,0.01],
+                'y_lims':   [0, 4*loss_mean],
                 'title':   'Training Loss'}
-    make_plot(loss, loss_opt, data_dir)
+    make_plot(loss[:,0], loss_opt, data_dir)
+    
+def plot_mcpg_loss(data_dir, loss,):
+    loss_opt = {'x_label': 'Episode',
+                'y_label': 'Loss',
+                'title':   'Policy Gradient Training Loss'}
+    make_plot(loss[:,0], loss_opt, data_dir)
+    
+    vf_loss_mean = np.mean(loss[:,1])
+    loss_opt = {'x_label': 'Episode',
+                'y_label': 'Loss',
+                'y_lims':   [0, 4*vf_loss_mean],
+                'title':   'Value Function Training Loss'}
+    make_plot(loss[:,1], loss_opt, data_dir)
 
 def plot_reward_stats(data_dir, episodes_data, episode_stats):
-    returns    = episode_stats['returns']
+    returns    = episode_stats['returns']  # undiscounted
     returns_MA = episode_stats['returns_MA']
     returns_SD = episode_stats['returns_SD']
 
@@ -119,6 +143,13 @@ def get_episode_plotter(config):
     elif env_name == 'my_Acrobot-v0':
         pass
 
+def unwrap(x):
+    for i in range(x.size - 1):
+        if x[i+1] - x[i] > np.pi:
+            x[i+1:] -= 2*np.pi
+        elif x[i] - x[i+1] > np.pi:
+            x[i+1:] += 2*np.pi
+
 def plot_pendulum_episode(episode):
     fig = plt.figure()
     fig.set_size_inches(10,5)
@@ -128,6 +159,7 @@ def plot_pendulum_episode(episode):
     rewards = episode.rewards
     
     thetas = np.arctan2(states[1,:],states[0,:])
+    unwrap(thetas)
     
     # Phase Plane plot
     ax0 = fig.add_subplot(1,2,1)
@@ -161,7 +193,9 @@ def plot_pendulum_episode(episode):
     ax2 = ax1.twinx()
     reward, = ax2.plot(rewards, label="Reward", color='tab:green')
 
-    plt.pause(0.01)
+    # plt.pause(0.01)
+    plt.show()
+    plt.close()
 
 class RewardPlotter:
     def __init__(self, num_eps):

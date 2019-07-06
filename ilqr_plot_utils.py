@@ -14,6 +14,13 @@ def get_plotter(env_name, env):
     else:
         print("ERROR: Invalid environment {:s} specified".format(env_name))
 
+def unwrap(x):
+    for i in range(x.size - 1):
+        if x[i+1] - x[i] > np.pi:
+            x[i+1:] -= 2*np.pi
+        elif x[i] - x[i+1] > np.pi:
+            x[i+1:] += 2*np.pi
+
 class PendulumPlotter:
     def __init__(self, env):
         self.fig = plt.figure()
@@ -66,6 +73,8 @@ class PendulumPlotter:
         # self.ax0.autoscale()
         
         theta = np.arctan2(x[1,:], x[0,:])
+        unwrap(theta)
+
         self.trajectory.set_xdata(theta/np.pi)
         self.trajectory.set_ydata(x[2,:])
         self.end.set_xdata(theta[-1]/np.pi)

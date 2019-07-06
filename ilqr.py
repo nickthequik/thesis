@@ -6,29 +6,60 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
-from numpy.linalg        import inv
-from ilqr_utils          import get_ilqr_env
+from numpy.linalg    import inv
+from ilqr_utils      import get_ilqr_env
 from ilqr_plot_utils import get_plotter
 
 def main():
-    a = np.zeros(500)
-    for i in range(500):
-        print(i)
-        a[i] = main1()
-        print(np.mean(a[0:i+1]))
-        
-    print(np.mean(a))
-
-def main1():
-    env_name = sys.argv[1]
-    iter     = int(sys.argv[2])
-    N        = int(sys.argv[3]) # control horizon
+    num_args = len(sys.argv)
     
-    alpha = [1, 0.5, 0.05, 0.01]
+    if num_args == 5:
+        env_name  = sys.argv[1]
+        iter      = int(sys.argv[2])
+        N         = int(sys.argv[3]) # control horizon
+        num_iters = int(sys.argv[4])
+        characterize_performance(num_iters, env_name, iter, N)
+    elif num_args == 4:
+        env_name = sys.argv[1]
+        iter     = int(sys.argv[2])
+        N        = int(sys.argv[3]) # control horizon
+        get_ilqr_controller(env_name, iter, N)
+    
+
+def characterize_performance(num_iters, env_name, iter, N):
+    total_reward = np.zeros(num_iters)
+    
+    for i in range(num_iters):
+        print(i)
+        x, u, Kfb, Quu, l, r = ilqr(env_name, iter, N)
+        total_reward[i] = np.sum(r)
+        print(np.mean(total_reward[0:i+1]))
+        
+    print(np.mean(total_reward))
+
+def get_ilqr_controller(env_name, iter, N):
+    x0 = np.array([-1., 0., 0.])
+    # x0 = np.array([0., 1., 0.])
+    # x0 = np.array([0., -1., 0.])
+    # x0 = np.array([0.5, 0.5, 0.])
+    # x0 = np.array([0.5, -0.5, 0.])
+    # x0 = np.array([-0.5, 0.5, 0.])
+    # x0 = np.array([-0.5, -0.5, 0.])
+    x, u, Kfb, Quu, l, r = ilqr(env_name, iter, N, x0=x0)    
+    dir = './experiments/pendulum/ilqr/low_variance'
+    fn  = '/traj0.npz'
+    np.savez_compressed(dir + fn, x0=x0, x=x, u=u, Kfb=Kfb, Quu=Quu)
+
+def ilqr(env_name, iter, N, x0=None):
+    alpha = [1, 0.5]
+    # alpha = [1, 0.5, 0.05, 0.01]
     # alpha = [10**x for x in np.linspace(0, -3, 11)]
     
     env = get_ilqr_env(env_name)
     if not env: sys.exit()
+    
+    if x0 is not None:
+        env.x0 = x0
     
     ilqr_plot = get_plotter(env_name, env)
     
@@ -44,7 +75,6 @@ def main1():
     x, u, l, J[0], r, a = forward_pass(x, u, Kff, Kfb, env, [1], N)
     
     ilqr_plot.plot(x, u, l, J, r, Kff, Kfb, a, 0)
-    #input("Press Enter to continue...")
     
     for i in range(iter):
         # Linearize system dynamics and quadratize costs
@@ -57,15 +87,20 @@ def main1():
         x, u, l, J[i+1], r, a = forward_pass(x, u, Kff, Kfb, env, alpha, N)
         
         ilqr_plot.plot(x, u, l, J, r, Kff, Kfb, a, i)
-        
-        # input("Press Enter to continue...")
+        #input("Press Enter to continue...")
         
     print("Final Total Cost: {:g}".format(J[-1]))
     print("Final Total Reward: {:g}".format(np.sum(r)))
     input("Press Enter to continue...")
     
     plt.close()
-    return np.sum(r)
+    
+    plt.figure()
+    plt.plot(np.sqrt(1/Quu[0,0,:]))
+    plt.show()
+    plt.close()
+    
+    return x, u, Kfb, Quu, l, r
 
 def forward_pass(x, u, Kff, Kfb, env, alpha, N):
     len_alpha = len(alpha)

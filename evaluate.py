@@ -29,7 +29,8 @@ def main():
 
     # initilize agent
     agent = init_agent(config, env)
-    agent.load(agent_dir)
+    # agent.load(agent_dir)
+    agent.load(agent_dir, 50)
 
     start_time = time.time()
 
@@ -54,7 +55,7 @@ def evaluate_agent(agent, env, config, num_eps):
     action_dim = env.action_space.shape[0]
 
     normalize_state, normalize_action, normalize_returns = get_normalizers(config['environment'])
-    # plot_episode = get_episode_plotter(config)
+    plot_episode = get_episode_plotter(config)
 
     window = config['window']
     episode_list = EpisodeList(state_dim, action_dim, timesteps, window)
@@ -77,7 +78,8 @@ def evaluate_agent(agent, env, config, num_eps):
 
             # norm_state = np.append(norm_state, t/(timesteps-1))
 
-            action = agent.act(norm_state, greedy=True)
+            # action = agent.act(norm_state, greedy=True)
+            action = agent.act(state, greedy=True)
             
             norm_action = normalize_action(action)
             episode.actions[:,t] = action
@@ -97,7 +99,7 @@ def evaluate_agent(agent, env, config, num_eps):
         returns_MA = episode_list.return_MA()
 
         # print episode stats and update reward plot
-        update_freq = 1
+        update_freq = 100
         print_episode_stats(total_reward, returns_MA, num_eps, i, update_freq)
         reward_plot.update(i, total_reward, returns_MA, update_freq)
         

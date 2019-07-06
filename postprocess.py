@@ -37,11 +37,13 @@ def main():
     # df = load_experiment_data(dir, subdirs, var_name)
     # average_performance_plot(df, var_name, subdirs)
     
-    dir = 'experiments/pendulum/official/mcc/trig_state'
-    subdirs = ['trig_state_no_time', 'theta_state_no_time']
-    var_name = 'State Space Formulation'
-    df = load_experiment_data(dir, subdirs, var_name)
-    average_performance_plot(df, var_name, subdirs)
+    # dir = 'experiments/pendulum/official/mcc/trig_state'
+    # subdirs = ['trig_state_no_time', 'theta_state_no_time']
+    # var_name = 'State Space Formulation'
+    # df = load_experiment_data(dir, subdirs, var_name)
+    # average_performance_plot(df, var_name, subdirs)
+    
+    replot_loss('experiments/pendulum/mcc/official/different_reward/trig_reward/1', [0, 0.02])
 
 def replot_loss(data_dir, y_lims):
     data = np.load(data_dir +'/train_data.npz')
@@ -50,7 +52,7 @@ def replot_loss(data_dir, y_lims):
                 'y_label': 'Loss',
                 'title':   'Training Loss',
                 'y_lims':   y_lims}
-    make_plot(loss, loss_opt, data_dir)
+    make_plot(loss[0,:], loss_opt, data_dir)
 
 # create dataframe for the different runs of an experiment
 def load_experiment_data(dir, subdirs, var_name):

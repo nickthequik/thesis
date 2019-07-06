@@ -56,29 +56,21 @@ class PendulumWrapper(EnvWrapper):
         self.action_dim  = self.env.action_space.shape[0]
         self.u_lim       = self.env.max_torque
         self.dt          = self.env.dt
-        # self.x0          = np.array([np.pi, 0])
-        # self.x0          = np.array([(2 * np.random.rand() - 1) * np.pi, 
-        #                               2 * np.random.rand() - 1])
-        # self.x0          = np.array([1.59879369, -0.57412035])
-        # self.x0          = np.array([0.17945291, -0.9560575])
-        # self.x0          = np.array([.5*np.pi, 0]) # -118 for 2 dim state
-        # self.x_target    = np.array([0, 0])
         
-        self.x0          = np.array([-0.94113802,  0.33802252, -0.78166668])
-        # self.x0          = np.array([(2 * np.random.rand() - 1), (2 * np.random.rand() - 1), (2 * np.random.rand() - 1)])
+        # self.x0          = np.array([-0.94113802,  0.33802252, -0.78166668])
+        self.x0          = np.array([(2 * np.random.rand() - 1), 
+                                     (2 * np.random.rand() - 1), 
+                                     (2 * np.random.rand() - 1)])
+        
         self.x_target    = np.array([1., 0, 0])
         
         # Quadratic Cost Terms
-        # self.Q  = np.array([[1, 0], [0, 1]]) * self.dt
-        # self.Qf = np.array([[10000, 0], [0, 10000]]) * self.dt
-        # self.R  = np.array([[1]]) * self.dt
-        # self.Q  = np.array([[1, 0], [0, .1]])
-        # self.Qf = np.array([[1, 0], [0, .1]])
-        # self.R  = np.array([[.001]])
-        
-        self.Q  = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
-        self.Qf = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
-        self.R  = np.array([[.05]])
+        self.Q  = 10*np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
+        self.Qf = 10*np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
+        self.R  = 10*np.array([[0.5]])
+        # self.Q  = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
+        # self.Qf = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
+        # self.R  = np.array([[.05]])
         # self.Q  = np.array([[10, 0, 0], [0, 10, 0], [0, 0, 1]])
         # self.Qf = np.array([[1000, 0, 0], [0, 1000, 0], [0, 0, 1000]])
         # self.R  = np.array([[5]])
@@ -96,37 +88,19 @@ class PendulumWrapper(EnvWrapper):
             # fx[:,:,t] = np.eye(2) + np.array([[0, 1],[15.*np.cos(x[0,t]), 0]]) * self.dt
             # fu[:,:,t] = np.array([[0],[3.]]) * self.dt
             
+            # dynamics with trig state state
             fx[:,:,t] = np.eye(3) + np.array([[0, -x[2,t], -x[1,t]],[x[2,t], 0, x[0,t]],[0, 15., 0]]) * self.dt
             fu[:,:,t] = np.array([[0],[0],[3.]]) * self.dt
             
             # quadratized cost
             lx[:,t] = self.Q @ (x[:,t] - self.x_target)
-            # lx[:,t] = np.array([(1-np.cos(x[0,t]))*np.sin(x[0,t]),0.1*x[1,t]])
-            # lx[:,t] = np.array([10*np.sin(x[0,t]),0.1*x[1,t]])
-            # lx[:,t] = self.Q @ (normalize_theta(x[:,t]) - self.x_target)
-            
             lu[:,t] = self.R @ u[:,t]
-            
             lxx[:,:,t] = self.Q
-            # lxx[:,:,t] = np.array([[-2*np.cos(x[0,t])**2+np.cos(x[0,t])+1, 0],[0, 0.1]])
-            # lxx[:,:,t] = np.array([[10*np.cos(x[0,t]), 0],[0, 0.1]])
             luu[:,:,t] = self.R
             
         # final state cost terms
         lx[:,N]    = self.Qf @ (x[:,N] - self.x_target)
-        # lx[:,N] = np.array([(1-np.cos(x[0,N]))*np.sin(x[0,N]),0.1*x[1,N]])
-        # lx[:,N] = np.array([10*np.sin(x[0,N]),0.1*x[1,N]])
-        # lx[:,N]    = self.Qf @ (normalize_theta(x[:,N]) - self.x_target)
         lxx[:,:,N] = self.Qf
-        # lxx[:,:,N] = np.array([[-2*np.cos(x[0,N])**2+np.cos(x[0,N])+1, 0],[0, 0.1]])
-        # lxx[:,:,N] = np.array([[10*np.cos(x[0,N]), 0],[0, 0.1]])
-
-        # plt.figure()
-        # plt.plot(lx[0,:])
-        # plt.plot(lx[1,:])
-        # plt.plot(lx[2,:])
-        # plt.show()
-        # plt.close()
 
         lin_sys = [fx, fu, lx, lu, lxx, luu]
         return lin_sys

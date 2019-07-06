@@ -46,7 +46,7 @@ def main():
         episodes_stats = get_episodes_stats(config, episodes_data, elapsed_time)
         store_episodes_stats(data_dir, episodes_data, episodes_stats)
         plot_episodes_data(data_dir, episodes_data, episodes_stats, config)
-        plot_loss_data(data_dir, loss)
+        plot_loss_data(data_dir, loss, config)
         
         agent.save(data_dir)
 

@@ -56,6 +56,7 @@ def concat_episodes(episodes_data):
     for i in range(num_eps):
         episode = episodes_data.episode_list[i]
         states  = episode.states
+        # states  = episode.norm_states
         actions = episode.actions
         rewards = episode.rewards
 

@@ -3,6 +3,7 @@ import numpy as np
 from ep_utils   import Episode, EpisodeList, print_episode_stats
 from plot_utils import RewardPlotter, TrainingTracker
 from env_utils  import get_normalizers
+from agents     import get_loss
 
 def train_agent(agent, env, config):
     num_eps   = config['episodes']
@@ -13,13 +14,12 @@ def train_agent(agent, env, config):
     action_dim = env.action_space.shape[0]
 
     normalize_state, normalize_action, normalize_returns = get_normalizers(config['environment'])
+    loss = get_loss(config)
 
     window = config['window']
     episode_list = EpisodeList(state_dim, action_dim, timesteps, window)
     reward_plot  = RewardPlotter(num_eps)
-    #train_track  = TrainingTracker(config, num_eps)
 
-    loss = np.zeros(num_eps)
     for i in range(num_eps):
         episode = Episode(state_dim, action_dim, timesteps)
         state = env.reset()
@@ -60,11 +60,7 @@ def train_agent(agent, env, config):
 
         # train agent on episode
         loss[i] = agent.train(episode_list)
-        #train_track.evaluate(i, agent)
-        
-        #input("Press Return to continue...")
 
-    #train_track.plot()
     reward_plot.close()
         
     return episode_list, loss
