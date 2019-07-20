@@ -244,11 +244,11 @@ def gps_loss(regularization_weight, guiding_action_prob):
         unnorm_reward = K.sum((policy_trajectory_probs / guiding_trajectory_probs) * reward, axis=0)
         #unnorm_reward = K.print_tensor(unnorm_reward, message = "unnorm_reward:")
 
-        # regularization = regularization_weight * K.log(Zt)
+        regularization = regularization_weight * K.log(Zt)
         # regularization = K.print_tensor(regularization, message = "regularization:")
         
-        # expected_reward = K.sum((unnorm_reward / Zt) + regularization)
-        expected_reward = K.sum((unnorm_reward / Zt))
+        expected_reward = K.sum((unnorm_reward / Zt) + regularization)
+        # expected_reward = K.sum((unnorm_reward / Zt))
 
         # negative bc keras minimizes loss function instead of maximize
         return -expected_reward
@@ -259,8 +259,10 @@ def gps_action(args):
     # mean, std = args
     mean = args
     std = np.float64(0.75)
-    action = Normal(loc=mean[0], scale=std).sample(1)
-    return [action[0], mean[0]]
+    dist = Normal(loc=mean[0], scale=std)
+    action = dist.sample(1)
+    prob = dist.prob(action)
+    return [action[0], mean[0], prob[0]]
 
 def prob(args):
     # mean, std, act_taken = args
@@ -322,23 +324,22 @@ class GPSNN:
         
     def decrease_regularization_weight(self):
         w = K.get_value(self.reg_weight)
-        if w > 1e-6:
-            w /= 10
-            print('decreasing regularization to {:g}'.format(w))
+        if w > 1e-4:
+            w /= 10.
+            # print('decreasing regularization to {:g}'.format(w))
             K.set_value(self.reg_weight, w)
 
     def increase_regularization_weight(self):
         w = K.get_value(self.reg_weight)
         if w < 1e-2:
-            w *= 10
-            print('increasing regularization to {:g}'.format(w))
+            w *= 10.
+            # print('increasing regularization to {:g}'.format(w))
             K.set_value(self.reg_weight, w)
         
     def save(self, name):
         self.mlp_act.save_weights(name)
         
     def load(self, name):
-        print('loading weights from {:s}'.format(name))
         self.mlp_act.load_weights(name)
 
 class GPSUpdater:
@@ -363,7 +364,7 @@ class GPSUpdater:
         y = np.ones(x.shape[0])
 
         # Binary Crossentropy with y all ones maximizes log probability
-        num_train_loops = 100
+        num_train_loops = 2000
         loss = np.zeros(num_train_loops)
         for i in range(num_train_loops):
             loss[i] = self.mlp_pretrain.train_on_batch(x=[x, u], y=y)

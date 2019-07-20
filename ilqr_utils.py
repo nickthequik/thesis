@@ -65,9 +65,9 @@ class PendulumWrapper(EnvWrapper):
         self.x_target    = np.array([1., 0, 0])
         
         # Quadratic Cost Terms
-        self.Q  = 10*np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
-        self.Qf = 10*np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
-        self.R  = 10*np.array([[0.5]])
+        self.Q  = np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
+        self.Qf = np.array([[100, 0, 0], [0, 100, 0], [0, 0, 1]])
+        self.R  = np.array([[0.5]])
         # self.Q  = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
         # self.Qf = np.array([[10, 0, 0], [0, 10, 0], [0, 0, .1]])
         # self.R  = np.array([[.05]])

@@ -27,9 +27,7 @@ def get_loss(config):
     agent_name = config['agent']
     num_eps   = config['episodes']
     
-    if agent_name == 'Random':
-        loss = np.zeros((num_eps, 1))
-    elif agent_name =='MonteCarloControl' or agent_name =='GPS':
+    if agent_name == 'Random' or agent_name =='MonteCarloControl' or agent_name =='GPS':
         loss = np.zeros((num_eps, 1))
     elif agent_name == 'REINFORCE':
         loss = np.zeros((num_eps, 2))
@@ -114,7 +112,8 @@ class GPSPolicy(Policy):
     def __call__(self, state):
         output = self.policy_model(state)
         action = output[0]
-        return action
+        prob = output[2]
+        return action, prob
 
     def greedy_action(self, state):
         output = self.policy_model(state)
@@ -219,17 +218,43 @@ class GPSAgent(Agent):
         else:
             return self.policy.greedy_action(state)
 
+    def pretrain(self, episode_list):
+        loss = self.trainer.pretraining(episode_list)
+        return loss
+
     def train(self, episode_list):
         loss = self.trainer(episode_list)
         return loss
         
-    def save(self, name, num):
-        fn = name + '/GPSAgent{:d}_weights.h5'.format(num)
-        self.policy.policy_model.save(fn)
+    def save(self, dir, best):
+        if best:
+            # print("Saving Best Agent")
+            fn = dir + '/ISAgent_best_weights.h5'
+            self.policy.policy_model.save(fn)
+        else:
+            # print("Saving Temp Agent")
+            fn = dir + '/ISAgent_temp_weights.h5'
+            self.policy.policy_model.save(fn)
         
-    def load(self, name, num):
-        fn = name + '/GPSAgent{:d}_weights.h5'.format(num)
-        self.policy.policy_model.load(fn)
+    def load(self, dir, best):
+        if best:
+            # print("Loading Best Agent")
+            fn = dir + '/ISAgent_best_weights.h5'
+            self.policy.policy_model.load(fn)
+        else:
+            # print("Loading Temp Agent")
+            fn = dir + '/ISAgent_temp_weights.h5'
+            self.policy.policy_model.load(fn)
+    
+    # def save(self, dir, agent_num):
+    #     print("Saving Agent {:d}".format(agent_num))
+    #     fn = dir + '/GPSAgent{:d}_weights.h5'.format(agent_num)
+    #     self.policy.policy_model.save(fn)
+    # 
+    # def load(self, dir, agent_num):
+    #     print("Loading Agent {:d}".format(agent_num))
+    #     fn = dir + '/GPSAgent{:d}_weights.h5'.format(agent_num)
+    #     self.policy.policy_model.load(fn)
 
 class RandomAgent(Agent):
     def __init__(self, env):

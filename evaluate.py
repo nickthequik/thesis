@@ -30,7 +30,7 @@ def main():
     # initilize agent
     agent = init_agent(config, env)
     # agent.load(agent_dir)
-    agent.load(agent_dir, 50)
+    agent.load(agent_dir, True)
 
     start_time = time.time()
 
@@ -70,7 +70,7 @@ def evaluate_agent(agent, env, config, num_eps):
 
         # sample episode from environment
         for t in range(timesteps):
-            env.render()
+            # env.render()
             
             norm_state = normalize_state(state)
             episode.states[:,t] = state
@@ -78,8 +78,8 @@ def evaluate_agent(agent, env, config, num_eps):
 
             # norm_state = np.append(norm_state, t/(timesteps-1))
 
-            # action = agent.act(norm_state, greedy=True)
-            action = agent.act(state, greedy=True)
+            action = agent.act(norm_state, greedy=True)
+            # action = agent.act(state, greedy=True)
             
             norm_action = normalize_action(action)
             episode.actions[:,t] = action

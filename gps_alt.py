@@ -11,7 +11,6 @@ from env_utils   import get_normalizers, init_env
 from plot_utils  import get_episode_plotter, plot_episodes_data, plot_loss_data
 from agents      import init_agent, get_loss
 from file_utils  import get_exp_cfg, make_data_dir
-from misc_utils  import concat_episodes
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -99,7 +98,7 @@ def GPS_train(data_dir, agent, env, config):
     policy_samples = EpisodeList(state_dim, action_dim, timesteps, window)
 
     # generate intial samples from pretrained policy
-    for i in range(5):
+    for i in range(10):
         episode = generate_policy_sample(config, env, agent)
         policy_samples.append(episode)
         
@@ -110,194 +109,42 @@ def GPS_train(data_dir, agent, env, config):
     print(np.mean(sample_total_rewards))
     
     # Generate the guiding probabilities
-    guiding_states, guiding_actions, guiding_rewards = concat_episodes(guiding_samples)    
-    sample_states, sample_actions, sample_rewards = concat_episodes(policy_samples) 
+    guiding_states, guiding_actions, guiding_rewards, guiding_probs = concat_episodes(guiding_samples)    
+    sample_states, sample_actions, sample_rewards, sample_probs = concat_episodes(policy_samples) 
 
     x = np.transpose(np.hstack((guiding_states, sample_states)))
     u = np.transpose(np.hstack((guiding_actions, sample_actions)))
     r = np.hstack((guiding_rewards, sample_rewards))
-    
-    # get action probabilities from guiding policies
-    guiding_policies_probs = np.zeros((len(guiding_policies), x.shape[0]))
-    for i in range(len(guiding_policies)):
-        guiding_policy = guiding_policies[i]
-        for j in range(x.shape[0]):
-            t = j%timesteps
-            guiding_policies_probs[i, j] = guiding_policy.get_action_prob(x[j], u[j], t)
-    
-    #######################################################################
-    print("Guiding Policy Prob")
-    print("Trajectory 1")
-    print(guiding_policies_probs[0, 0:100])
-    print("Trajectory 2")
-    print(guiding_policies_probs[0, 500:600])
-    print("Trajectory 3")
-    print(guiding_policies_probs[0, 1000:1100])
-    print("Trajectory 4")
-    print(guiding_policies_probs[0, 1500:1600])
-    print("Trajectory 5")
-    print(guiding_policies_probs[0, 2000:2100])
-    print("Trajectory 6")
-    print(guiding_policies_probs[0, 2500:2600])
-    print("Trajectory 7")
-    print(guiding_policies_probs[0, 3000:3100])
-    print("Trajectory 8")
-    print(guiding_policies_probs[0, 3500:3600])
-    print("Trajectory 9")
-    print(guiding_policies_probs[0, 3600:3700])
-    print("Trajectory 10")
-    print(guiding_policies_probs[0, 3700:3800])
-    print("Trajectory 11")
-    print(guiding_policies_probs[0, 3800:3900])
-    print("Trajectory 12")
-    print(guiding_policies_probs[0, 3900:4000])
-    #######################################################################
-    
-    # get action probabilities from all agents
-    other_agent_probs = np.zeros((agent.agent_num, x.shape[0]))
-    for i in range(agent.agent_num):
-        agent.load(data_dir, i+1)
-        other_agent_probs[i, :] = np.squeeze(agent.policy.action_prob(x, u))
-    
-    #######################################################################
-    print("Other Agent Prob")
-    print("Trajectory 1")
-    print(other_agent_probs[0, 0:100])
-    print("Trajectory 2")
-    print(other_agent_probs[0, 500:600])
-    print("Trajectory 3")
-    print(other_agent_probs[0, 1000:1100])
-    print("Trajectory 4")
-    print(other_agent_probs[0, 1500:1600])
-    print("Trajectory 5")
-    print(other_agent_probs[0, 2000:2100])
-    print("Trajectory 6")
-    print(other_agent_probs[0, 2500:2600])
-    print("Trajectory 7")
-    print(other_agent_probs[0, 3000:3100])
-    print("Trajectory 8")
-    print(other_agent_probs[0, 3500:3600])
-    print("Trajectory 9")
-    print(other_agent_probs[0, 3600:3700])
-    print("Trajectory 10")
-    print(other_agent_probs[0, 3700:3800])
-    print("Trajectory 11")
-    print(other_agent_probs[0, 3800:3900])
-    print("Trajectory 12")
-    print(other_agent_probs[0, 3900:4000])
-    #######################################################################
-    
-    guiding_action_probs = np.mean(np.vstack((guiding_policies_probs, other_agent_probs)), axis=0)
+    probs = np.hstack((guiding_probs, sample_probs))
     
     loss = get_loss(config)
     # each 'episode' generates 5 policy samples
     for ii in range(num_eps): 
         # train the best agent
-        print("Loading Best Agent for Training")
-        agent.load(data_dir, best_agent)
-        loss[ii] = agent.train([x, u, r, guiding_action_probs])
+        loss[ii] = agent.train([x, u, r, probs])
         print('Loss')
         print(np.squeeze(loss))
         agent.save(data_dir)
             
         # get samples from new agent
-        for i in range(5):
+        for i in range(10):
             episode = generate_policy_sample(config, env, agent)
             policy_samples.append(episode)
-        
-        #######################################################################
-        # sample_total_rewards = np.zeros(policy_samples.num_eps)
-        # for i in range(policy_samples.num_eps):
-        #     sample_total_rewards[i] = policy_samples.episode_list[i].total_reward
-        # print("Average Sample Reward")
-        # print(np.mean(sample_total_rewards))
-        #######################################################################
             
         # predict performance of new and best agent   
-        sample_states, sample_actions, sample_rewards = concat_episodes(policy_samples) 
+        sample_states, sample_actions, sample_rewards, sample_probs = concat_episodes(policy_samples) 
 
         x = np.transpose(np.hstack((guiding_states, sample_states)))
         u = np.transpose(np.hstack((guiding_actions, sample_actions)))
         r = np.hstack((guiding_rewards, sample_rewards))
+        probs = np.hstack((guiding_probs, sample_probs))
         
         cur_policy_action_probs = np.squeeze(agent.policy.action_prob(x, u))
         agent.load(data_dir, best_agent)
         best_policy_action_probs = np.squeeze(agent.policy.action_prob(x, u))
         
-        # get action probabilities from guiding policies
-        guiding_policies_probs = np.zeros((len(guiding_policies), x.shape[0]))
-        for i in range(len(guiding_policies)):
-            guiding_policy = guiding_policies[i]
-            for j in range(x.shape[0]):
-                t = j%timesteps
-                guiding_policies_probs[i, j] = guiding_policy.get_action_prob(x[j], u[j], t)
-        
-        # get action probabilities from all agents
-        other_agent_probs = np.zeros((agent.agent_num, x.shape[0]))
-        for i in range(agent.agent_num):
-            agent.load(data_dir, i+1)
-            other_agent_probs[i, :] = np.squeeze(agent.policy.action_prob(x, u))
-        
-        guiding_action_probs = np.mean(np.vstack((guiding_policies_probs, other_agent_probs)), axis=0)
-        
-        #######################################################################
-        print("Guiding Action Prob")
-        print("Trajectory 1")
-        print(guiding_action_probs[0:100])
-        print("Trajectory 2")
-        print(guiding_action_probs[500:600])
-        print("Trajectory 3")
-        print(guiding_action_probs[1000:1100])
-        print("Trajectory 4")
-        print(guiding_action_probs[1500:1600])
-        print("Trajectory 5")
-        print(guiding_action_probs[2000:2100])
-        print("Trajectory 6")
-        print(guiding_action_probs[2500:2600])
-        print("Trajectory 7")
-        print(guiding_action_probs[3000:3100])
-        print("Trajectory 8")
-        print(guiding_action_probs[3500:3600])
-        print("Trajectory 9")
-        print(guiding_action_probs[3600:3700])
-        print("Trajectory 10")
-        print(guiding_action_probs[3700:3800])
-        print("Trajectory 11")
-        print(guiding_action_probs[3800:3900])
-        print("Trajectory 12")
-        print(guiding_action_probs[3900:4000])
-        #######################################################################
-        
-        #######################################################################
-        print("Guiding Policy Prob")
-        print("Trajectory 1")
-        print(guiding_policies_probs[0, 0:100])
-        print("Trajectory 2")
-        print(guiding_policies_probs[0, 500:600])
-        print("Trajectory 3")
-        print(guiding_policies_probs[0, 1000:1100])
-        print("Trajectory 4")
-        print(guiding_policies_probs[0, 1500:1600])
-        print("Trajectory 5")
-        print(guiding_policies_probs[0, 2000:2100])
-        print("Trajectory 6")
-        print(guiding_policies_probs[0, 2500:2600])
-        print("Trajectory 7")
-        print(guiding_policies_probs[0, 3000:3100])
-        print("Trajectory 8")
-        print(guiding_policies_probs[0, 3500:3600])
-        print("Trajectory 9")
-        print(guiding_policies_probs[0, 3600:3700])
-        print("Trajectory 10")
-        print(guiding_policies_probs[0, 3700:3800])
-        print("Trajectory 11")
-        print(guiding_policies_probs[0, 3800:3900])
-        print("Trajectory 12")
-        print(guiding_policies_probs[0, 3900:4000])
-        #######################################################################
-        
-        cur_policy_estimated_reward = estimate_expected_reward(r, guiding_action_probs, cur_policy_action_probs)
-        best_policy_estimated_reward = estimate_expected_reward(r, guiding_action_probs, best_policy_action_probs)
+        cur_policy_estimated_reward = estimate_expected_reward(r, probs, cur_policy_action_probs)
+        best_policy_estimated_reward = estimate_expected_reward(r, probs, best_policy_action_probs)
         
         print('cur_policy_estimated_reward')
         print(cur_policy_estimated_reward)
@@ -313,6 +160,9 @@ def GPS_train(data_dir, agent, env, config):
             print("Keeping Old Best Agent")
             # increase regularization
             agent.policy.policy_model.increase_regularization_weight()
+            
+        print("Loading Best Agent for Training")
+        agent.load(data_dir, best_agent)
             
     print('Best Agent')
     print(best_agent)
@@ -364,11 +214,12 @@ def generate_policy_sample(config, env, gps_agent):
         episode.states[:,t] = state
         episode.norm_states[:,t] = norm_state
 
-        action = gps_agent.act(state)
+        action, prob = gps_agent.act(state)
         # action = gps_agent.act(norm_state)
         
         norm_action = normalize_action(action)
         episode.actions[:,t] = action
+        episode.probs[t] = prob
         episode.norm_actions[:,t] = norm_action
         
         state, reward, _, _ = env.step(action)
@@ -399,10 +250,11 @@ def generate_guiding_sample(config, env, guiding_policy):
         episode.states[:,t] = state
         episode.norm_states[:,t] = norm_state
 
-        action = guiding_policy.act(state, t)
+        action, prob = guiding_policy.act(state, t)
         
         norm_action = normalize_action(action)
         episode.actions[:,t] = action
+        episode.probs[t] = prob
         episode.norm_actions[:,t] = norm_action
         
         state, reward, _, _ = env.step(action)
@@ -423,6 +275,32 @@ def load_guiding_policies(dir):
 
     return guiding_policies
 
+def concat_episodes(episodes_data):
+    num_eps    = episodes_data.num_eps
+    timesteps  = episodes_data.timesteps
+    state_dim  = episodes_data.state_dim
+    action_dim = episodes_data.action_dim
+
+    concat_states   = np.zeros((state_dim, timesteps * num_eps))
+    concat_actions  = np.zeros((action_dim, timesteps * num_eps))
+    concat_rewards  = np.zeros(timesteps * num_eps)
+    concat_probs    = np.zeros(timesteps * num_eps)
+
+    for i in range(num_eps):
+        episode = episodes_data.episode_list[i]
+        states  = episode.states
+        # states  = episode.norm_states
+        actions = episode.actions
+        rewards = episode.rewards
+        probs   = episode.probs
+
+        concat_states[:, i*timesteps:(i+1)*timesteps]  = states
+        concat_actions[:, i*timesteps:(i+1)*timesteps] = actions
+        concat_rewards[i*timesteps:(i+1)*timesteps]    = rewards
+        concat_probs[i*timesteps:(i+1)*timesteps]      = probs
+
+    return concat_states, concat_actions, concat_rewards, concat_probs
+
 class GuidingPolicy:
     def __init__(self, traj_path):
         ilqr_policy = np.load(traj_path)
@@ -441,8 +319,9 @@ class GuidingPolicy:
         # stochastic policy from deterministic iLQR
         std_dev = np.sqrt(1/self.Quu[:,:,t])
         u_stoch = norm.rvs(loc=u_det, scale=std_dev, size=1)
+        action_prob = norm.pdf(u_stoch, loc=u_det, scale=std_dev)
 
-        return u_stoch
+        return u_stoch, np.squeeze(action_prob)
 
     def get_action_prob(self, x, u, t):
         dx = x - self.x[:,t]

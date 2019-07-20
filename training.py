@@ -1,7 +1,7 @@
 
 import numpy as np
 from ep_utils   import Episode, EpisodeList, print_episode_stats
-from plot_utils import RewardPlotter, TrainingTracker
+from plot_utils import RewardPlotter
 from env_utils  import get_normalizers
 from agents     import get_loss
 

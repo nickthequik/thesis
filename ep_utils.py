@@ -35,6 +35,9 @@ class Episode:
         # normalized states and action for training neural networks
         self.norm_states  = np.zeros((state_dim, timesteps))
         self.norm_actions = np.zeros((action_dim, timesteps))
+        
+        # for GPS
+        self.probs = np.zeros(timesteps)
 
     def calculate_returns(self, ep_length, gamma, normalize_returns):
         self.length = ep_length
