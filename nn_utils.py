@@ -8,7 +8,6 @@ from tensorflow.keras.models     import Sequential, Model
 from tensorflow.keras.layers     import Dense, Input, Lambda
 from tensorflow.keras.optimizers import Adam
 from tensorflow.distributions    import Normal
-from misc_utils                  import concat_episodes
 
 # hidden_layer_nodes = 24
 hidden_layer_nodes = 50
@@ -257,8 +256,10 @@ def gps_loss(regularization_weight, guiding_action_prob):
 
 def gps_action(args):
     # mean, std = args
+    # dist = Normal(loc=mean[0], scale=std[0])
     mean = args
-    std = np.float64(0.75)
+    # std = np.float64(0.75)
+    std = np.float64(.5)
     dist = Normal(loc=mean[0], scale=std)
     action = dist.sample(1)
     prob = dist.prob(action)
@@ -267,7 +268,8 @@ def gps_action(args):
 def prob(args):
     # mean, std, act_taken = args
     mean, act_taken = args
-    std = np.float64(0.75)
+    # std = np.float64(0.75)
+    std = np.float64(.5)
     prob = Normal(loc=mean, scale=std).prob(act_taken)
     return prob
 
@@ -282,14 +284,14 @@ def make_gps_mlp(input_size, output_size, config):
     # mean = Dense(units=output_size, activation='tanh')(x)
     # std  = Dense(units=output_size, activation='softplus')(x)
     
-    # action_out = Lambda(action)([mean, std])
+    # action_out = Lambda(gps_action)([mean, std])
     action_out = Lambda(gps_action)(mean)
     model_act  = Model(inputs=input, outputs=action_out)
     
     if config['train']:
         act_taken    = Input(shape=(output_size,))
         guiding_prob = Input(shape=(1,))
-        # log_prob_out = Lambda(log_prob)([mean, std, act_taken])
+        # prob_out = Lambda(prob)([mean, std, act_taken])
         prob_out = Lambda(prob)([mean, act_taken])
         
         # Model for full training
@@ -342,6 +344,29 @@ class GPSNN:
     def load(self, name):
         self.mlp_act.load_weights(name)
 
+def concat_episodes(episodes_data):
+    num_eps    = episodes_data.num_eps
+    timesteps  = episodes_data.timesteps
+    state_dim  = episodes_data.state_dim
+    action_dim = episodes_data.action_dim
+
+    concat_states   = np.zeros((state_dim, timesteps * num_eps))
+    concat_actions  = np.zeros((action_dim, timesteps * num_eps))
+    concat_rewards  = np.zeros(timesteps * num_eps)
+
+    for i in range(num_eps):
+        episode = episodes_data.episode_list[i]
+        # states  = episode.states
+        states  = episode.norm_states
+        actions = episode.actions
+        rewards = episode.rewards
+
+        concat_states[:, i*timesteps:(i+1)*timesteps]  = states
+        concat_actions[:, i*timesteps:(i+1)*timesteps] = actions
+        concat_rewards[i*timesteps:(i+1)*timesteps]    = rewards
+
+    return concat_states, concat_actions, concat_rewards
+
 class GPSUpdater:
     def __init__(self, policy, config):
         self.mlp_train = policy.policy_model.mlp_train
@@ -364,13 +389,12 @@ class GPSUpdater:
         y = np.ones(x.shape[0])
 
         # Binary Crossentropy with y all ones maximizes log probability
-        num_train_loops = 2000
+        num_train_loops = 200
         loss = np.zeros(num_train_loops)
         for i in range(num_train_loops):
             loss[i] = self.mlp_pretrain.train_on_batch(x=[x, u], y=y)
 
         return loss
-        
         
         
         

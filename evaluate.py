@@ -31,6 +31,7 @@ def main():
     agent = init_agent(config, env)
     # agent.load(agent_dir)
     agent.load(agent_dir, True)
+    # agent.load(agent_dir, 0)
 
     start_time = time.time()
 
@@ -63,14 +64,15 @@ def evaluate_agent(agent, env, config, num_eps):
 
     for i in range(num_eps):
         episode = Episode(state_dim, action_dim, timesteps)
-        state = env.reset()
+        # state = env.reset()
+        state = env.reset(state=np.array([-1, 0, 0]))
         
         # print("x0:")
         # print(state)
 
         # sample episode from environment
         for t in range(timesteps):
-            # env.render()
+            env.render()
             
             norm_state = normalize_state(state)
             episode.states[:,t] = state

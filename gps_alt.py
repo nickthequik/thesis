@@ -69,10 +69,11 @@ def GPS_train(data_dir, agent, env, config):
     action_dim = env.action_space.shape[0]
     
     # keeps track of best agent
-    best_agent = 1
+    best_agent = 0
+    agent_num = 0
     
     # load guiding ilqr policies
-    guiding_policies = load_guiding_policies('experiments/pendulum/ilqr/high_variance')
+    guiding_policies = load_guiding_policies('experiments/pendulum/ilqr/medium_variance')
     guiding_samples = EpisodeList(state_dim, action_dim, timesteps, window)
     for i in range(len(guiding_policies)):
         # generate 5 guiding samples per guiding policy
@@ -88,7 +89,8 @@ def GPS_train(data_dir, agent, env, config):
             
     # pretraining makes agent emulate actions taken by guiding samples
     loss = agent.pretrain(guiding_samples)
-    agent.save(data_dir)
+    agent.save(data_dir, agent_num)
+    agent_num += 1
     
     plt.figure()
     plt.plot(loss)

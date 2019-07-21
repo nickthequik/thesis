@@ -235,7 +235,7 @@ class GPSAgent(Agent):
             # print("Saving Temp Agent")
             fn = dir + '/ISAgent_temp_weights.h5'
             self.policy.policy_model.save(fn)
-        
+    
     def load(self, dir, best):
         if best:
             # print("Loading Best Agent")

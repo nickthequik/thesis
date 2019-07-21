@@ -72,8 +72,34 @@ def GPS_train(data_dir, agent, env, config):
     
     normalize_state, normalize_action, normalize_returns = get_normalizers(config['environment'])
     normalize = [normalize_state, normalize_action, normalize_returns]
-    
+
     window = config['window']
+
+    ############################################################################
+    # generate guiding samples
+    # guiding_policies = load_guiding_policies('experiments/pendulum/ilqr/higher_variance')
+    guiding_policies = load_guiding_policies('experiments/pendulum/ilqr/high_variance')
+    # guiding_policies = load_guiding_policies('experiments/pendulum/ilqr/medium_variance')
+    guiding_samples = EpisodeList(state_dim, action_dim, timesteps, window)
+    for i in range(len(guiding_policies)):
+        # generate 5 guiding samples per guiding policy
+        for j in range(5):
+            episode = generate_guiding_sample(config, env, guiding_policies[i])
+            guiding_samples.append(episode)
+            
+    guiding_states, guiding_actions, guiding_rewards, guiding_probs = concat_guiding_samples(guiding_samples) 
+    
+    # pretraining makes agent emulate actions taken by guiding samples
+    loss = agent.pretrain(guiding_samples)
+    agent.save(data_dir, True)
+    
+    plt.figure()
+    plt.plot(loss)
+    plt.show()
+    plt.close()
+    ############################################################################
+
+    
     policy_samples = EpisodeList(state_dim, action_dim, timesteps, window)
     reward_plot  = RewardPlotter(num_eps*10)
     update_freq = 1000
@@ -88,6 +114,13 @@ def GPS_train(data_dir, agent, env, config):
      
     # sample from experienced episodes
     x, u, r, p = concat_episodes(policy_samples, config) 
+    
+    ############################################################################
+    x = np.vstack((guiding_states, x))
+    u = np.vstack((guiding_actions, u))
+    r = np.hstack((guiding_rewards, r))
+    p = np.hstack((guiding_probs, p))
+    ############################################################################
     
     loss = get_loss(config)
     for i in range(num_eps): 
@@ -108,6 +141,13 @@ def GPS_train(data_dir, agent, env, config):
           
         # sample from experienced episodes
         x, u, r, p = concat_episodes(policy_samples, config)
+        
+        ############################################################################
+        x = np.vstack((guiding_states, x))
+        u = np.vstack((guiding_actions, u))
+        r = np.hstack((guiding_rewards, r))
+        p = np.hstack((guiding_probs, p))
+        ############################################################################
         
         # predict performance of new and best agent
         cur_policy_action_probs = np.squeeze(agent.policy.action_prob(x, u))
@@ -152,13 +192,25 @@ def estimate_expected_reward(r, guiding_action_probs, policy_action_probs):
     importance_weights = policy_trajectory_probs / guiding_trajectory_prob
     
     #######################################################################
-    # print("Importance Weights")
-    # print(policy_trajectory_probs[:,0])
-    # print(guiding_trajectory_prob[:,0])
-    # print(importance_weights[:, 0])
+    print("Policy Trajectory Prob")
+    print(policy_trajectory_probs[0:5,0])
+    print("Guiding Trajectory Prob")
+    print(guiding_trajectory_prob[0:5,0])
+    print("Importance Weights")
+    print(importance_weights[0:5, 0])
+    # print("Normalizing Factor")
     # print(Zt[0])
     # print(np.sum(importance_weights[:, 0]/Zt[0]))
     # input("...")
+    
+    # print("Guiding Sample Importance Weights")
+    # print(importance_weights[0:35, 0])
+    # print("Policy Sample Importance Weights")
+    # print(importance_weights[35:, 0])
+    # print("Guiding Sample Importance Weights")
+    # print(importance_weights[0:5, 0])
+    # print("Policy Sample Importance Weights")
+    # print(importance_weights[5:, 0])
     #######################################################################
 
     return expected_return
@@ -175,7 +227,8 @@ def generate_policy_sample(config, env, gps_agent, normalize):
     plot_episode = get_episode_plotter(config)
     episode = Episode(state_dim, action_dim, timesteps)
     
-    state = env.reset()
+    # state = env.reset()
+    state = env.reset(state=np.array([-1, 0, 0]))
     for t in range(timesteps):
         #env.render()
         
@@ -237,7 +290,111 @@ def concat_episodes(episode_list, config):
         concat_probs[i*timesteps:(i+1)*timesteps]      = probs
 
     return concat_states.T, concat_actions.T, concat_rewards, concat_probs
+
+###########################################################################    
+###########################################################################
+def generate_guiding_sample(config, env, guiding_policy):
+    timesteps = config['timesteps']
+    gamma     = config['gamma']
+    state_dim  = env.state_space.shape[0]
+    action_dim = env.action_space.shape[0]
+    
+    normalize_state, normalize_action, normalize_returns = get_normalizers(config['environment'])
+    plot_episode = get_episode_plotter(config)
+    episode = Episode(state_dim, action_dim, timesteps)
+    
+    state = env.reset(state=guiding_policy.x0)
+    for t in range(timesteps):
+        #env.render()
         
+        norm_state = normalize_state(state)
+        episode.states[:,t] = state
+        episode.norm_states[:,t] = norm_state
+
+        action, prob = guiding_policy.act(state, t)
+        
+        norm_action = normalize_action(action)
+        episode.actions[:,t] = action
+        episode.probs[t] = prob
+        episode.norm_actions[:,t] = norm_action
+        
+        state, reward, _, _ = env.step(action)
+
+        episode.rewards[t] = reward
+        
+    plot_episode(episode)
+    
+    episode.calculate_returns(t, gamma, normalize_returns)
+        
+    return episode
+    
+def load_guiding_policies(dir):
+    guiding_policies = []
+    # for i in range(7):
+    for i in range(1):
+        path = dir + '/traj{:d}.npz'.format(i)
+        guiding_policies.append(GuidingPolicy(path))
+
+    return guiding_policies
+
+def concat_guiding_samples(episodes_data):
+    num_eps    = episodes_data.num_eps
+    timesteps  = episodes_data.timesteps
+    state_dim  = episodes_data.state_dim
+    action_dim = episodes_data.action_dim
+
+    concat_states   = np.zeros((state_dim, timesteps * num_eps))
+    concat_actions  = np.zeros((action_dim, timesteps * num_eps))
+    concat_rewards  = np.zeros(timesteps * num_eps)
+    concat_probs    = np.zeros(timesteps * num_eps)
+
+    for i in range(num_eps):
+        episode = episodes_data.episode_list[i]
+        # states  = episode.states
+        states  = episode.norm_states
+        actions = episode.actions
+        rewards = episode.rewards
+        probs   = episode.probs
+
+        concat_states[:, i*timesteps:(i+1)*timesteps]  = states
+        concat_actions[:, i*timesteps:(i+1)*timesteps] = actions
+        concat_rewards[i*timesteps:(i+1)*timesteps]    = rewards
+        concat_probs[i*timesteps:(i+1)*timesteps]      = probs
+
+    return concat_states.T, concat_actions.T, concat_rewards, concat_probs
+
+class GuidingPolicy:
+    def __init__(self, traj_path):
+        ilqr_policy = np.load(traj_path)
+        self.x0   = ilqr_policy['x0']
+        self.x    = ilqr_policy['x']
+        self.u    = ilqr_policy['u']
+        self.Kfb = ilqr_policy['Kfb']
+        self.Quu  = ilqr_policy['Quu']
+        self.u_lim = 2
+
+    def act(self, x, t):
+        dx = x - self.x[:,t]
+        u_det = self.u[:,t] + self.Kfb[:,:,t] @ dx
+        u_det = np.min([self.u_lim, np.max([-self.u_lim, u_det])])
+
+        # stochastic policy from deterministic iLQR
+        std_dev = np.sqrt(1/self.Quu[:,:,t])
+        u_stoch = norm.rvs(loc=u_det, scale=std_dev, size=1)
+        action_prob = norm.pdf(u_stoch, loc=u_det, scale=std_dev)
+
+        return u_stoch, np.squeeze(action_prob)
+
+    def get_action_prob(self, x, u, t):
+        dx = x - self.x[:,t]
+        u_det = self.u[:,t] + self.Kfb[:,:,t] @ dx
+        u_det = np.min([self.u_lim, np.max([-self.u_lim, u_det])])
+
+        std_dev = np.sqrt(1/self.Quu[:,:,t])
+        action_prob = norm.pdf(u, loc=u_det, scale=std_dev)
+
+        return np.squeeze(action_prob)    
+    
 if __name__ == '__main__':
     main()
     

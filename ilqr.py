@@ -46,7 +46,7 @@ def get_ilqr_controller(env_name, iter, N):
     # x0 = np.array([-0.5, 0.5, 0.])
     # x0 = np.array([-0.5, -0.5, 0.])
     x, u, Kfb, Quu, l, r = ilqr(env_name, iter, N, x0=x0)    
-    dir = './experiments/pendulum/ilqr/high_variance'
+    dir = './experiments/pendulum/ilqr/higher_variance'
     fn  = '/traj0.npz'
     np.savez_compressed(dir + fn, x0=x0, x=x, u=u, Kfb=Kfb, Quu=Quu)
 
